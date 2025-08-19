@@ -4,6 +4,7 @@
  ****************************************************************************/
 
 #include <px4_ros2/control/peripheral_actuators.hpp>
+#include <px4_ros2/utils/message_version.hpp>
 
 using namespace std::chrono_literals;
 
@@ -14,7 +15,9 @@ PeripheralActuatorControls::PeripheralActuatorControls(Context & context)
 : _node(context.node())
 {
   _vehicle_command_pub = _node.create_publisher<px4_msgs::msg::VehicleCommand>(
-    context.topicNamespacePrefix() + "fmu/in/vehicle_command", 1);
+    context.topicNamespacePrefix() + "fmu/in/vehicle_command" +
+    px4_ros2::getMessageNameVersion<px4_msgs::msg::VehicleCommand>(),
+    1);
   _last_update = _node.get_clock()->now();
 }
 
@@ -36,7 +39,7 @@ void PeripheralActuatorControls::set(const Eigen::Matrix<float, kNumActuators, 1
     cmd.param5 = values(4);
     cmd.param6 = values(5);
     cmd.param7 = 0; // index
-    cmd.timestamp = _node.get_clock()->now().nanoseconds() / 1000;
+    cmd.timestamp = 0; // Let PX4 set the timestamp
     _vehicle_command_pub->publish(cmd);
   }
 }

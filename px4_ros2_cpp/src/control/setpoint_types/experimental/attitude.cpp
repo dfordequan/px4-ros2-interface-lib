@@ -5,7 +5,7 @@
 
 #include <px4_ros2/control/setpoint_types/experimental/attitude.hpp>
 #include <px4_ros2/utils/geometry.hpp>
-
+#include <px4_ros2/utils/message_version.hpp>
 
 namespace px4_ros2
 {
@@ -15,7 +15,9 @@ AttitudeSetpointType::AttitudeSetpointType(Context & context)
 {
   _vehicle_attitude_setpoint_pub =
     context.node().create_publisher<px4_msgs::msg::VehicleAttitudeSetpoint>(
-    context.topicNamespacePrefix() + "fmu/in/vehicle_attitude_setpoint", 1);
+    context.topicNamespacePrefix() + "fmu/in/vehicle_attitude_setpoint" +
+    px4_ros2::getMessageNameVersion<px4_msgs::msg::VehicleAttitudeSetpoint>(),
+    1);
 }
 
 void AttitudeSetpointType::update(
@@ -34,7 +36,7 @@ void AttitudeSetpointType::update(
   sp.thrust_body[1] = thrust_setpoint_frd(1);
   sp.thrust_body[2] = thrust_setpoint_frd(2);
   sp.yaw_sp_move_rate = yaw_sp_move_rate_rad_s;
-  sp.timestamp = _node.get_clock()->now().nanoseconds() / 1000;
+  sp.timestamp = 0; // Let PX4 set the timestamp
   _vehicle_attitude_setpoint_pub->publish(sp);
 }
 
@@ -48,7 +50,7 @@ void AttitudeSetpointType::update(
   onUpdate();
 
   px4_msgs::msg::VehicleAttitudeSetpoint sp{};
-  sp.timestamp = _node.get_clock()->now().nanoseconds() / 1000;
+  sp.timestamp = 0; // Let PX4 set the timestamp
 
   sp.yaw_sp_move_rate = yaw_sp_move_rate_rad_s;
 

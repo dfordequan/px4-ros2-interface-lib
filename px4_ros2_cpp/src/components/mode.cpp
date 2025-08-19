@@ -6,6 +6,7 @@
 #include "px4_ros2/components/mode.hpp"
 #include "px4_ros2/components/message_compatibility_check.hpp"
 #include "px4_ros2/components/wait_for_fmu.hpp"
+#include "px4_ros2/utils/message_version.hpp"
 
 #include "registration.hpp"
 
@@ -28,16 +29,22 @@ ModeBase::ModeBase(
     topic_namespace_prefix), _config_overrides(node, topic_namespace_prefix)
 {
   _vehicle_status_sub = node.create_subscription<px4_msgs::msg::VehicleStatus>(
-    topic_namespace_prefix + "fmu/out/vehicle_status", rclcpp::QoS(1).best_effort(),
+    topic_namespace_prefix + "fmu/out/vehicle_status" +
+    px4_ros2::getMessageNameVersion<px4_msgs::msg::VehicleStatus>(), rclcpp::QoS(
+      1).best_effort(),
     [this](px4_msgs::msg::VehicleStatus::UniquePtr msg) {
       if (_registration->registered()) {
         vehicleStatusUpdated(msg);
       }
     });
   _mode_completed_pub = node.create_publisher<px4_msgs::msg::ModeCompleted>(
-    topic_namespace_prefix + "fmu/in/mode_completed", 1);
+    topic_namespace_prefix + "fmu/in/mode_completed" +
+    px4_ros2::getMessageNameVersion<px4_msgs::msg::ModeCompleted>(),
+    1);
   _config_control_setpoints_pub = node.create_publisher<px4_msgs::msg::VehicleControlMode>(
-    topic_namespace_prefix + "fmu/in/config_control_setpoints", 1);
+    topic_namespace_prefix + "fmu/in/config_control_setpoints" +
+    px4_ros2::getMessageNameVersion<px4_msgs::msg::VehicleControlMode>(),
+    1);
 }
 
 ModeBase::ModeID ModeBase::id() const
@@ -56,7 +63,7 @@ bool ModeBase::doRegister()
 {
   assert(!_registration->registered());
 
-  if (!_skip_message_compatibility_check && (!waitForFMU(node(), 15s) ||
+  if (!_skip_message_compatibility_check && (!waitForFMU(node(), 15s, topicNamespacePrefix()) ||
     !messageCompatibilityCheck(node(), {ALL_PX4_ROS2_MESSAGES}, topicNamespacePrefix())))
   {
     return false;
@@ -184,7 +191,7 @@ void ModeBase::completed(Result result)
   px4_msgs::msg::ModeCompleted mode_completed{};
   mode_completed.nav_state = static_cast<uint8_t>(id());
   mode_completed.result = static_cast<uint8_t>(result);
-  mode_completed.timestamp = node().get_clock()->now().nanoseconds() / 1000;
+  mode_completed.timestamp = 0; // Let PX4 set the timestamp
   _mode_completed_pub->publish(mode_completed);
   _completed = true;
 }
@@ -247,9 +254,12 @@ void ModeBase::updateModeRequirementsFromSetpoints()
     requirements.angular_velocity |= config.rates_enabled;
     requirements.attitude |= config.attitude_enabled;
     requirements.local_alt |= config.altitude_enabled;
-    requirements.local_position |= config.velocity_enabled;
-    requirements.local_position |= config.position_enabled;
     requirements.local_alt |= config.climb_rate_enabled;
+
+    if (!config.local_position_is_optional) {
+      requirements.local_position |= config.velocity_enabled;
+      requirements.local_position |= config.position_enabled;
+    }
   }
 
   if (requirements.manual_control) {
@@ -281,7 +291,7 @@ void ModeBase::activateSetpointType(SetpointBase & setpoint)
   px4_msgs::msg::VehicleControlMode control_mode{};
   control_mode.source_id = static_cast<uint8_t>(id());
   setpoint.getConfiguration().fillControlMode(control_mode);
-  control_mode.timestamp = node().get_clock()->now().nanoseconds() / 1000;
+  control_mode.timestamp = 0; // Let PX4 set the timestamp
   _config_control_setpoints_pub->publish(control_mode);
 }
 

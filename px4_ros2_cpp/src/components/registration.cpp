@@ -8,6 +8,7 @@
 #include <cassert>
 #include <random>
 #include <unistd.h>
+#include <px4_ros2/utils/message_version.hpp>
 
 static constexpr uint16_t kLatestPX4ROS2ApiVersion = 1;
 
@@ -18,17 +19,22 @@ Registration::Registration(rclcpp::Node & node, const std::string & topic_namesp
 {
   _register_ext_component_reply_sub =
     node.create_subscription<px4_msgs::msg::RegisterExtComponentReply>(
-    topic_namespace_prefix + "fmu/out/register_ext_component_reply",
+    topic_namespace_prefix + "fmu/out/register_ext_component_reply" +
+    px4_ros2::getMessageNameVersion<px4_msgs::msg::RegisterExtComponentReply>(),
     rclcpp::QoS(1).best_effort(),
     [](px4_msgs::msg::RegisterExtComponentReply::UniquePtr msg) {
     });
 
   _register_ext_component_request_pub =
     node.create_publisher<px4_msgs::msg::RegisterExtComponentRequest>(
-    topic_namespace_prefix + "fmu/in/register_ext_component_request", 1);
+    topic_namespace_prefix + "fmu/in/register_ext_component_request" +
+    px4_ros2::getMessageNameVersion<px4_msgs::msg::RegisterExtComponentRequest>(),
+    1);
 
   _unregister_ext_component_pub = node.create_publisher<px4_msgs::msg::UnregisterExtComponent>(
-    topic_namespace_prefix + "fmu/in/unregister_ext_component", 1);
+    topic_namespace_prefix + "fmu/in/unregister_ext_component" +
+    px4_ros2::getMessageNameVersion<px4_msgs::msg::UnregisterExtComponent>(),
+    1);
 
   _unregister_ext_component.mode_id = px4_ros2::ModeBase::kModeIDInvalid;
 }
@@ -83,7 +89,7 @@ bool Registration::doRegister(const RegistrationSettings & settings)
   bool got_reply = false;
 
   for (int retries = 0; retries < 5 && !got_reply; ++retries) {
-    request.timestamp = _node.get_clock()->now().nanoseconds() / 1000;
+    request.timestamp = 0; // Let PX4 set the timestamp
     _register_ext_component_request_pub->publish(request);
 
     // wait for publisher, it might take a while initially...
@@ -163,7 +169,7 @@ void Registration::doUnregister()
 {
   if (_registered) {
     RCLCPP_DEBUG(_node.get_logger(), "Unregistering");
-    _unregister_ext_component.timestamp = _node.get_clock()->now().nanoseconds() / 1000;
+    _unregister_ext_component.timestamp = 0; // Let PX4 set the timestamp
     _unregister_ext_component_pub->publish(_unregister_ext_component);
     _registered = false;
   }

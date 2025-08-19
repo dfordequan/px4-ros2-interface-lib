@@ -8,7 +8,7 @@
 #include <Eigen/Eigen>
 #include <px4_msgs/msg/vehicle_global_position.hpp>
 #include <px4_ros2/common/context.hpp>
-#include <px4_ros2/odometry/subscription.hpp>
+#include <px4_ros2/utils/subscription.hpp>
 
 namespace px4_ros2
 {
@@ -23,6 +23,14 @@ class OdometryGlobalPosition : public Subscription<px4_msgs::msg::VehicleGlobalP
 {
 public:
   explicit OdometryGlobalPosition(Context & context);
+
+  /**
+   * Check if the last vehicle's global position is valid.
+   */
+  bool positionValid() const
+  {
+    return lastValid() && last().lat_lon_valid && last().alt_valid;
+  }
 
   /**
    * @brief Get the vehicle's global position.

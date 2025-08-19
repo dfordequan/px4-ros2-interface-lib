@@ -4,6 +4,7 @@
  ****************************************************************************/
 
 #include <px4_ros2/control/setpoint_types/direct_actuators.hpp>
+#include <px4_ros2/utils/message_version.hpp>
 
 
 namespace px4_ros2
@@ -13,9 +14,13 @@ DirectActuatorsSetpointType::DirectActuatorsSetpointType(Context & context)
 : SetpointBase(context), _node(context.node())
 {
   _actuator_motors_pub = context.node().create_publisher<px4_msgs::msg::ActuatorMotors>(
-    context.topicNamespacePrefix() + "fmu/in/actuator_motors", 1);
+    context.topicNamespacePrefix() + "fmu/in/actuator_motors" +
+    px4_ros2::getMessageNameVersion<px4_msgs::msg::ActuatorMotors>(),
+    1);
   _actuator_servos_pub = context.node().create_publisher<px4_msgs::msg::ActuatorServos>(
-    context.topicNamespacePrefix() + "fmu/in/actuator_servos", 1);
+    context.topicNamespacePrefix() + "fmu/in/actuator_servos" +
+    px4_ros2::getMessageNameVersion<px4_msgs::msg::ActuatorServos>(),
+    1);
 }
 
 void DirectActuatorsSetpointType::updateMotors(
@@ -28,7 +33,7 @@ void DirectActuatorsSetpointType::updateMotors(
   for (int i = 0; i < kMaxNumMotors; ++i) {
     sp_motors.control[i] = motor_commands(i);
   }
-  sp_motors.timestamp = _node.get_clock()->now().nanoseconds() / 1000;
+  sp_motors.timestamp = 0; // Let PX4 set the timestamp
   _actuator_motors_pub->publish(sp_motors);
 }
 
@@ -42,7 +47,7 @@ void DirectActuatorsSetpointType::updateServos(
   for (int i = 0; i < kMaxNumServos; ++i) {
     sp_servos.control[i] = servo_commands(i);
   }
-  sp_servos.timestamp = _node.get_clock()->now().nanoseconds() / 1000;
+  sp_servos.timestamp = 0; // Let PX4 set the timestamp
   _actuator_servos_pub->publish(sp_servos);
 }
 

@@ -6,6 +6,7 @@
 #include "px4_ros2/components/message_compatibility_check.hpp"
 #include <px4_msgs/msg/message_format_request.hpp>
 #include <px4_msgs/msg/message_format_response.hpp>
+#include <px4_ros2/utils/message_version.hpp>
 
 #include <string>
 #include <vector>
@@ -130,8 +131,10 @@ enum class RequestMessageFormatReturn
 
 RequestMessageFormatReturn requestMessageFormat(
   rclcpp::Node & node, const px4_msgs::msg::MessageFormatRequest & request,
-  const rclcpp::Subscription<px4_msgs::msg::MessageFormatResponse>::SharedPtr & message_format_response_sub,
-  const rclcpp::Publisher<px4_msgs::msg::MessageFormatRequest>::SharedPtr & message_format_request_pub,
+  const rclcpp::Subscription<px4_msgs::msg::MessageFormatResponse>::SharedPtr &
+  message_format_response_sub,
+  const rclcpp::Publisher<px4_msgs::msg::MessageFormatRequest>::SharedPtr &
+  message_format_request_pub,
   px4_msgs::msg::MessageFormatResponse & response, bool verbose)
 {
   rclcpp::WaitSet wait_set;
@@ -197,7 +200,8 @@ RequestMessageFormatReturn requestMessageFormat(
             }                                     // Else: response to a different topic, try again
           } else {
             RCLCPP_ERROR(
-              node.get_logger(), "Protocol version mismatch: got %i, expected %i", response.protocol_version,
+              node.get_logger(), "Protocol version mismatch: got %i, expected %i",
+              response.protocol_version,
               px4_msgs::msg::MessageFormatRequest::LATEST_PROTOCOL_VERSION);
             request_message_format_return = RequestMessageFormatReturn::ProtocolVersionMismatch;
           }
@@ -229,13 +233,17 @@ bool messageCompatibilityCheck(
     message_format_response_sub
     =
     node.create_subscription<px4_msgs::msg::MessageFormatResponse>(
-      topic_namespace_prefix + "fmu/out/message_format_response", rclcpp::QoS(1).best_effort(),
+      topic_namespace_prefix + "fmu/out/message_format_response" +
+      px4_ros2::getMessageNameVersion<px4_msgs::msg::MessageFormatResponse>(), rclcpp::QoS(
+        1).best_effort(),
       [](px4_msgs::msg::MessageFormatResponse::UniquePtr msg) {});
 
   const rclcpp::Publisher<px4_msgs::msg::MessageFormatRequest>::SharedPtr message_format_request_pub
     =
     node.create_publisher<px4_msgs::msg::MessageFormatRequest>(
-      topic_namespace_prefix + "fmu/in/message_format_request", 1);
+      topic_namespace_prefix + "fmu/in/message_format_request" +
+      px4_ros2::getMessageNameVersion<px4_msgs::msg::MessageFormatRequest>(),
+      1);
 
   const std::string msgs_dir = ament_index_cpp::get_package_share_directory("px4_msgs");
   if (msgs_dir.empty()) {
@@ -269,7 +277,7 @@ bool messageCompatibilityCheck(
       reinterpret_cast<char *>(request.topic_name.data()),
       message_to_check.topic_name.c_str(), request.topic_name.size() - 1);
     request.topic_name.back() = '\0';
-    request.timestamp = node.get_clock()->now().nanoseconds() / 1000;
+    request.timestamp = 0; // Let PX4 set the timestamp
     px4_msgs::msg::MessageFormatResponse response;
     switch (requestMessageFormat(
         node, request, message_format_response_sub, message_format_request_pub,
@@ -301,7 +309,8 @@ bool messageCompatibilityCheck(
 
   if (!mismatched_topics.empty()) {
     RCLCPP_ERROR(
-      node.get_logger(), "Mismatch for the following topics, update PX4 or the px4_ros2 library and px4_msgs:%s",
+      node.get_logger(),
+      "Mismatch for the following topics, update PX4 or the px4_ros2 library and px4_msgs:%s",
       mismatched_topics.c_str());
   }
 

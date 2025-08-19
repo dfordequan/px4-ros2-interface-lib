@@ -4,6 +4,7 @@
  ****************************************************************************/
 
 #include <px4_ros2/control/setpoint_types/goto.hpp>
+#include <px4_ros2/utils/message_version.hpp>
 
 
 namespace px4_ros2
@@ -14,7 +15,9 @@ GotoSetpointType::GotoSetpointType(Context & context)
 {
   _goto_setpoint_pub =
     context.node().create_publisher<px4_msgs::msg::GotoSetpoint>(
-    context.topicNamespacePrefix() + "fmu/in/goto_setpoint", 1);
+    context.topicNamespacePrefix() + "fmu/in/goto_setpoint" +
+    px4_ros2::getMessageNameVersion<px4_msgs::msg::GotoSetpoint>(),
+    1);
 }
 
 void GotoSetpointType::update(
@@ -47,7 +50,7 @@ void GotoSetpointType::update(
   sp.flag_set_max_vertical_speed = max_vertical_speed.has_value();
   sp.flag_set_max_heading_rate = max_heading_rate.has_value();
 
-  sp.timestamp = _node.get_clock()->now().nanoseconds() / 1000;
+  sp.timestamp = 0; // Let PX4 set the timestamp
   _goto_setpoint_pub->publish(sp);
 }
 
